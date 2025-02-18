@@ -13,6 +13,9 @@ pygame.display.set_caption('Space Shooter')
 background = pygame.image.load('galaxy.png')
 background = pygame.transform.scale(background, (window_width, window_height))
 
+menu = pygame.image.load('menu.png')
+menu = pygame.transform.scale(menu, (window_width, window_height))
+
 class Sprite:
     def __init__(self, x, y, w, h, image):
         self.hitbox = pygame.Rect(x, y, w, h)
@@ -40,7 +43,7 @@ class Player(Sprite):
     def fire(self):
         bullets.append(Bullet((self.hitbox.centerx - 10), self.hitbox.y, 20, 20, bullet_img, 15))
         fire_sfx = pygame.mixer.Sound('fire.ogg')
-        fire_sfx.set_volume(0.3)
+        fire_sfx.set_volume(0.1)
         fire_sfx.play()
 
 class UFO(Sprite):
@@ -51,12 +54,24 @@ class UFO(Sprite):
     def move(self):
         self.hitbox.y += self.speed
         if self.hitbox.y > 800:
+            global points_lost
+            global points_lost_lb
             rx = random.randint(0, 330)
             ry = random.randint(-250, -50)
             rs = random.randint(2, 4)
             self.hitbox.x = rx
             self.hitbox.y = ry
             self.speed = rs
+            points_lost += 1
+            points_lost_lb = font.render(f'UFOs missed: {points_lost}', True, (255, 255, 255))
+
+    def kill(self):
+        rx = random.randint(0, 330)
+        ry = random.randint(-250, -50)
+        rs = random.randint(2, 4)
+        self.hitbox.x = rx
+        self.hitbox.y = ry
+        self.speed = rs
 
 class Asteroid(Sprite):
     def __init__(self, x, y, w, h, image, speed, skew):
@@ -102,18 +117,15 @@ player_img = pygame.image.load('rocket.png')
 ufo_img = pygame.image.load('ufo.png')
 asteroid_img = pygame.image.load('asteroid.png')
 bullet_img = pygame.image.load('bullet.png')
-
-font = pygame.font.SysFont('Arial', 90, True)
-small_font = pygame.font.SysFont('Arial', 50, True)
-lose = font.render('skill issue', True, (255, 0, 0))
-win = font.render('let him cook', True, (0, 255, 0))
-replay = small_font.render('press space to play again', True, (0, 0, 0))
+start_btn_img = pygame.image.load('start_btn.png')
 
 game = True
 
-pygame.mixer.music.load('space.mp3')
+pygame.mixer.music.load('menu.ogg')
 pygame.mixer.music.play(loops=-1)
 pygame.mixer.music.set_volume(0.2)
+
+button = Sprite(100, 325, 200, 75, start_btn_img)
 
 player = Player(170, 700, 60, 120, player_img, 3)
 
@@ -128,62 +140,154 @@ bullets = []
 
 asteroid = Asteroid(0, 801, 150, 150, asteroid_img, 1, 1)
 
+font = pygame.font.SysFont('Midnight Letters', 25)
+big_font = pygame.font.SysFont('Midnight Letters', 50)
+massive_font = pygame.font.SysFont('Midnight Letters', 70) # and you know what else is massive?
+
+points = 0
+points_lost = 0
+
+points_lb = font.render(f'UFOs shot down: {points}', True, (255, 255, 255))
+points_lost_lb = font.render(f'UFOs missed: {points_lost}', True, (255, 255, 255))
+pause_lb = massive_font.render('Pause', True, (255, 255, 255))
+menu_btn_lb = font.render('press space to go to menu', True, (255, 255, 255))
+
+lose = big_font.render('skill issue', True, (255, 0, 0))
+win = big_font.render('let him cook', True, (0, 255, 0))
+
 finish = False
 win_state = False
+start = False
+pause = False
+
+i = 0
+i2 = 0
+
+def pause_game():
+    global pause
+    if not pause:
+        pause = True
+    else:
+        pause = False
+
+def return_to_menu():
+    global start, finish, points, points_lost, points_lb, points_lost_lb, i, i2, pause
+    start = False
+    finish = False
+    pause = False
+    points = 0
+    points_lost = 0
+    points_lb = font.render(f'UFOs shot down: {points}', True, (255, 255, 255))
+    points_lost_lb = font.render(f'UFOs missed: {points_lost}', True, (255, 255, 255))
+    pygame.mixer.music.load('menu.ogg')
+    pygame.mixer.music.play(loops=-1)
+    pygame.mixer.music.set_volume(0.2)
+    i = 0
+    i2 = 0
 
 while game:
-    window.blit(background, (0, 0))
+    if not start:
+        window.blit(menu, (0, 0))
+        button.draw()
+        for event in pygame.event.get():
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                start = True
+            if event.type == pygame.QUIT:
+                game = False
 
-    if not finish:
-        player.move(pygame.K_a, pygame.K_d)
-        player.draw()
-        asteroid.move()
-        asteroid.draw()
-        for alien in aliens:
-            alien.move()
-            alien.draw()
+    if start:
+        if i != 1:
+            pygame.mixer.music.load('space.wav')
+            pygame.mixer.music.play(loops=-1)
+            pygame.mixer.music.set_volume(0.2)
+
+            player.hitbox.x, player.hitbox.y = 170, 700
+            for alien in aliens:
+                alien.hitbox.x, alien.hitbox.y = 0, 0
+                alien.kill()
+            asteroid.hitbox.x, asteroid.hitbox.y = 0, 801
+
+            i = 1
+    
+        window.blit(background, (0, 0))
+        window.blit(points_lb, (1, 0))
+        window.blit(points_lost_lb, (1, 26))
+
+        if not finish:
+            if not pause:
+                player.move(pygame.K_a, pygame.K_d)
+                asteroid.move()
+            player.draw()
+            asteroid.draw()
+            for alien in aliens:
+                if not pause:
+                    alien.move()
+                alien.draw()
+
+                for bullet in bullets:
+                    if alien.hitbox.colliderect(bullet.hitbox):
+                        alien.kill()
+                        bullet.stop()
+                        hit_sfx = pygame.mixer.Sound('hit.ogg')
+                        hit_sfx.set_volume(0.1)
+                        hit_sfx.play()
+                        points += 1
+                        points_lb = font.render(f'UFOs shot down: {points}', True, (255, 255, 255))
+                                    
+                if alien.hitbox.colliderect(asteroid.hitbox) and alien.hitbox.y >= 0:
+                    alien.kill()
+                    if asteroid.speed - 1 > 1:
+                        asteroid.speed -= 1
+                    if asteroid.speed == 5:
+                        if asteroid.skew > 0:
+                            asteroid.skew -= 1
+                        elif asteroid.skew < 0:
+                            asteroid.skew += 1
+
+                    hit_sfx = pygame.mixer.Sound('hit.ogg')
+                    hit_sfx.set_volume(0.6)
+                    hit_sfx.play()
+  
+                if player.hitbox.colliderect(asteroid.hitbox) or player.hitbox.colliderect(alien.hitbox) or points_lost >= 5:
+                    finish = True
+                    win_state = False
 
             for bullet in bullets:
-                if alien.hitbox.colliderect(bullet.hitbox):
-                    alien.hitbox.x = 801
-                    bullet.stop()
-                    hit_sfx = pygame.mixer.Sound('hit.ogg')
-                    hit_sfx.set_volume(0.3)
-                    hit_sfx.play()
-            
-            if alien.hitbox.colliderect(asteroid.hitbox) and alien.hitbox.y >= 0:
-                alien.hitbox.x = 801
-                if asteroid.speed - 1 > 1:
-                    asteroid.speed -= 1
-                if asteroid.speed == 5:
-                    if asteroid.skew > 0:
-                        asteroid.skew -= 1
-                    elif asteroid.skew < 0:
-                        asteroid.skew += 1
+                if not pause:
+                    bullet.move()
+                bullet.draw()
 
+            if pause:
+                window.blit(pause_lb, (85, 325))
+                window.blit(menu_btn_lb, (20, 425))
+
+        else:
+            if win_state:
+                window.blit(win, (35, 350))
+            else:
+                window.blit(lose, (50, 350))
+            window.blit(menu_btn_lb, (20, 450))
+
+            pygame.mixer.music.stop()
+            
+            if i2 == 0:
                 hit_sfx = pygame.mixer.Sound('hit.ogg')
                 hit_sfx.set_volume(0.6)
                 hit_sfx.play()
+                i2 = 1
 
-        for bullet in bullets:
-            bullet.move()
-            bullet.draw()
-
-    else:
-        if win_state:
-            window.blit(win, (100, 140))
-        else:
-            window.blit(lose, (140, 140))
-        window.blit(replay, (40, 250))
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            game = False
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_f:
-            player.fire()
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE and finish:
-            player = Player(170, 700, 60, 120, player_img, 3)
-            finish = False
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                game = False
+            if not pause:
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_f:
+                    player.fire()
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE and finish:
+                return_to_menu()
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                pause_game()
+            if event.type == pygame.KEYDOWN and pause and event.key == pygame.K_SPACE:
+                return_to_menu()
 
     pygame.display.update()
     clock.tick(FPS)
