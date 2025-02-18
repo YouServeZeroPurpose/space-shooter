@@ -161,6 +161,7 @@ start = False
 pause = False
 
 i = 0
+i1 = 0
 i2 = 0
 
 def pause_game():
@@ -171,23 +172,42 @@ def pause_game():
         pause = False
 
 def return_to_menu():
-    global start, finish, points, points_lost, points_lb, points_lost_lb, i, i2, pause
+    global start, finish, points, points_lost, points_lb, points_lost_lb, i, i1, i2, pause
     start = False
     finish = False
     pause = False
-    points = 0
     points_lost = 0
-    points_lb = font.render(f'UFOs shot down: {points}', True, (255, 255, 255))
+    points_lb = font.render('UFOs shot down: 0', True, (255, 255, 255))
     points_lost_lb = font.render(f'UFOs missed: {points_lost}', True, (255, 255, 255))
     pygame.mixer.music.load('menu.ogg')
     pygame.mixer.music.play(loops=-1)
     pygame.mixer.music.set_volume(0.2)
     i = 0
+    i1 = 0
     i2 = 0
 
 while game:
     if not start:
         window.blit(menu, (0, 0))
+        if i1 == 0:
+            with open('high_score.txt', 'r') as file:
+                try:
+                    old_score = int(file.read())
+                except:
+                    old_score = 0
+
+                high_lb = font.render(f'High score: {old_score}', True, (255, 255, 255))
+                new_rec_lb = font.render('', True, (255, 255, 255))
+                if int(points) > old_score:
+                    with open('high_score.txt', 'w') as file:
+                        score = points
+                        file.write(str(score))
+                    high_lb = font.render(f'High score: {score}', True, (255, 255, 255))
+                    new_rec_lb = font.render('New record!', True, (255, 255, 255))
+            i1 = 1
+
+        window.blit(high_lb, (0, 0))
+        window.blit(new_rec_lb, (0, 30))
         button.draw()
         for event in pygame.event.get():
             if event.type == pygame.MOUSEBUTTONDOWN:
@@ -196,6 +216,7 @@ while game:
                 game = False
 
     if start:
+        i1 = 0
         if i != 1:
             pygame.mixer.music.load('space.wav')
             pygame.mixer.music.play(loops=-1)
@@ -206,6 +227,10 @@ while game:
                 alien.hitbox.x, alien.hitbox.y = 0, 0
                 alien.kill()
             asteroid.hitbox.x, asteroid.hitbox.y = 0, 801
+
+            bullets = []
+
+            points = 0
 
             i = 1
     
@@ -248,7 +273,7 @@ while game:
                     hit_sfx.set_volume(0.6)
                     hit_sfx.play()
   
-                if player.hitbox.colliderect(asteroid.hitbox) or player.hitbox.colliderect(alien.hitbox) or points_lost >= 5:
+                if player.hitbox.colliderect(asteroid.hitbox) or player.hitbox.colliderect(alien.hitbox) or points_lost >= 10:
                     finish = True
                     win_state = False
 
@@ -279,9 +304,8 @@ while game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 game = False
-            if not pause:
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_f:
-                    player.fire()
+            if event.type == pygame.MOUSEBUTTONDOWN and not pause and not finish:
+                player.fire()
             if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE and finish:
                 return_to_menu()
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
