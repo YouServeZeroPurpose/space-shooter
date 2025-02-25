@@ -256,7 +256,7 @@ while game:
                         hit_sfx = pygame.mixer.Sound('hit.ogg')
                         hit_sfx.set_volume(0.1)
                         hit_sfx.play()
-                        points += 1
+                        points += 100
                         points_lb = font.render(f'UFOs shot down: {points}', True, (255, 255, 255))
                                     
                 if alien.hitbox.colliderect(asteroid.hitbox) and alien.hitbox.y >= 0:
@@ -276,6 +276,10 @@ while game:
                 if player.hitbox.colliderect(asteroid.hitbox) or player.hitbox.colliderect(alien.hitbox) or points_lost >= 10:
                     finish = True
                     win_state = False
+
+            if points >= 1337:
+                win_state = True
+                finish = True
 
             for bullet in bullets:
                 if not pause:
